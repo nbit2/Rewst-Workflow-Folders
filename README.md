@@ -36,8 +36,17 @@ Before installing any browser extension you should review the source code yourse
 
 This was a quick side project and comes with no warranty or guarantee of fitness for any purpose. It may break if Rewst updates their UI. Use it at your own risk.
 
+## Backup & Sharing
+
+The bottom of the folder manager has **Export** and **Import** buttons.
+
+**Export** downloads a `.json` file containing your folder structure and workflow assignments for the current org. Do this before removing or reinstalling the extension, as local storage is wiped on uninstall.
+
+**Import** loads a backup file. If the file was exported from the same org, folders and assignments are both restored. If it came from a different org (e.g. sharing a structure with a teammate), only the folders are imported — assignments are skipped since the workflow IDs won't match.
+
 ## Notes
 
 - Assignments are stored in browser local storage — they aren't synced to Rewst or shared with other users
+- Export your folders before uninstalling the extension — local storage is cleared on removal
 - If Rewst updates their UI and the extension stops working, the most likely fix is reloading the extension
 - The extension only runs on the workflows list page, nowhere else
