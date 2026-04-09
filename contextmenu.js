@@ -59,19 +59,20 @@ const ContextMenuModule = (() => {
       menu.appendChild(_separator());
     }
 
-    // Folder items
+    // Folder items — depth-first tree order with indentation
     const folders = _orgData.folders;
-    const sorted = Object.entries(folders).sort(([, a], [, b]) => a.order - b.order);
+    const flatTree = _buildFlatTree(folders);
 
-    if (sorted.length === 0) {
+    if (flatTree.length === 0) {
       const emptyMsg = document.createElement('div');
       emptyMsg.className = 'rwf-cm-empty';
       emptyMsg.textContent = 'No folders yet';
       menu.appendChild(emptyMsg);
     } else {
-      for (const [folderId, folder] of sorted) {
+      for (const { id: folderId, folder, depth } of flatTree) {
         const item = document.createElement('div');
         item.className = 'rwf-cm-item';
+        item.style.paddingLeft = (12 + depth * 14) + 'px';
 
         // Checkmark if all selected workflows are already in this folder
         const allInFolder = workflowIds.every(
@@ -109,6 +110,28 @@ const ContextMenuModule = (() => {
       document.addEventListener('contextmenu', _removeMenu, { once: true });
       document.addEventListener('scroll', _removeMenu, { once: true, passive: true });
     }, 0);
+  }
+
+  /** Returns folders in depth-first tree order with their depth level. */
+  function _buildFlatTree(folders) {
+    const result = [];
+    const childrenOf = {};
+    for (const [id, f] of Object.entries(folders)) {
+      const p = f.parentId || null;
+      if (!childrenOf[p]) childrenOf[p] = [];
+      childrenOf[p].push([id, f]);
+    }
+    for (const key of Object.keys(childrenOf)) {
+      childrenOf[key].sort(([, a], [, b]) => a.order - b.order);
+    }
+    function visit(parentId, depth) {
+      for (const [id, folder] of (childrenOf[parentId] || [])) {
+        result.push({ id, folder, depth });
+        visit(id, depth + 1);
+      }
+    }
+    visit(null, 0);
+    return result;
   }
 
   function _separator() {

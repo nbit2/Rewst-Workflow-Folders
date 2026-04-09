@@ -20,6 +20,12 @@ let activeView = 'all';
 let activeFolderId = null;
 let colorIndex = 0;
 
+// expandedFolders tracks which folder IDs are open in the tree (all open by default)
+const expandedFolders = new Set();
+
+// pendingNewFolderParent: undefined = not creating, null = root, string = parent folderId
+let pendingNewFolderParent = undefined;
+
 // ── Storage helpers ────────────────────────────────────────────────────────
 
 async function loadOrgData() {
@@ -36,11 +42,48 @@ async function saveOrgData(data) {
 }
 
 function nextColor() {
-  // Pick a color not already in use, or cycle if all used
   const usedColors = new Set(Object.values(orgData.folders).map((f) => f.color));
   const unused = FOLDER_COLORS.filter((c) => !usedColors.has(c));
   if (unused.length > 0) return unused[0];
   return FOLDER_COLORS[colorIndex++ % FOLDER_COLORS.length];
+}
+
+// ── Folder hierarchy helpers ───────────────────────────────────────────────
+
+function getDescendantFolderIds(folderId) {
+  const result = new Set([folderId]);
+  for (const [id, f] of Object.entries(orgData.folders)) {
+    if (f.parentId === folderId) {
+      for (const did of getDescendantFolderIds(id)) {
+        result.add(did);
+      }
+    }
+  }
+  return result;
+}
+
+/** Count workflows assigned to folderId or any of its descendants. */
+function getWorkflowCount(folderId) {
+  const descendants = getDescendantFolderIds(folderId);
+  let count = 0;
+  for (const fid of Object.values(orgData.assignments)) {
+    if (descendants.has(fid)) count++;
+  }
+  return count;
+}
+
+/** Build a map of parentId → sorted children [[id, folder], ...]. */
+function buildChildrenMap() {
+  const map = {};
+  for (const [id, f] of Object.entries(orgData.folders)) {
+    const p = f.parentId || null;
+    if (!map[p]) map[p] = [];
+    map[p].push([id, f]);
+  }
+  for (const key of Object.keys(map)) {
+    map[key].sort(([, a], [, b]) => a.order - b.order);
+  }
+  return map;
 }
 
 // ── Messaging ──────────────────────────────────────────────────────────────
@@ -53,7 +96,7 @@ async function sendFilter(view, folderId) {
       folderId: folderId || null,
     });
   } catch {
-    // Content script not ready (page not loaded yet) — ignore
+    // Content script not ready — ignore
   }
 }
 
@@ -61,17 +104,13 @@ async function sendFilter(view, folderId) {
 
 function renderFolderList() {
   const list = document.getElementById('folder-list');
-  const counts = {};
-  for (const fid of Object.values(orgData.assignments)) {
-    counts[fid] = (counts[fid] || 0) + 1;
-  }
-
-  const sorted = Object.entries(orgData.folders)
-    .sort(([, a], [, b]) => a.order - b.order);
-
   list.innerHTML = '';
 
-  if (sorted.length === 0) {
+  const folders = orgData.folders;
+  const hasAnyFolders = Object.keys(folders).length > 0;
+  const isCreatingRoot = pendingNewFolderParent === null;
+
+  if (!hasAnyFolders && !isCreatingRoot) {
     const empty = document.createElement('li');
     empty.className = 'empty-folders';
     empty.textContent = 'No folders yet — create one below';
@@ -79,24 +118,86 @@ function renderFolderList() {
     return;
   }
 
-  for (const [fid, folder] of sorted) {
-    const count = counts[fid] || 0;
+  const childrenMap = buildChildrenMap();
+  let focusPendingInput = null;
+
+  function renderNewFolderInput(parentId, depth) {
     const li = document.createElement('li');
-    li.className = 'folder-item' + (activeView === 'folder' && activeFolderId === fid ? ' active' : '');
+    li.className = 'folder-item';
+    li.style.paddingLeft = (10 + depth * 16) + 'px';
+
+    const input = document.createElement('input');
+    input.className = 'inline-input';
+    input.placeholder = 'Folder name\u2026';
+    li.appendChild(input);
+    list.appendChild(li);
+    focusPendingInput = input;
+
+    async function submit() {
+      const name = input.value.trim();
+      pendingNewFolderParent = undefined;
+      if (!name) { renderFolderList(); return; }
+      const id = crypto.randomUUID();
+      const color = nextColor();
+      const siblings = Object.values(orgData.folders).filter(
+        (f) => (f.parentId || null) === parentId
+      );
+      orgData.folders[id] = { name, color, order: siblings.length, parentId };
+      await saveOrgData(orgData);
+      renderFolderList();
+    }
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); submit(); }
+      if (e.key === 'Escape') { pendingNewFolderParent = undefined; renderFolderList(); }
+    });
+    input.addEventListener('blur', () =>
+      setTimeout(() => { if (document.contains(input)) submit(); }, 150)
+    );
+  }
+
+  function renderFolderItem(fid, folder, depth) {
+    const children = childrenMap[fid] || [];
+    const willShowChildren = children.length > 0 || pendingNewFolderParent === fid;
+    const isExpanded = expandedFolders.has(fid) || pendingNewFolderParent === fid;
+    const count = getWorkflowCount(fid);
+    const isActive = activeView === 'folder' && activeFolderId === fid;
+
+    const li = document.createElement('li');
+    li.className = 'folder-item' + (isActive ? ' active' : '');
     li.dataset.folderId = fid;
+    li.style.paddingLeft = (10 + depth * 16) + 'px';
+
     li.innerHTML = `
+      <span class="folder-toggle${willShowChildren ? '' : ' folder-toggle--leaf'}">${willShowChildren ? (isExpanded ? '▾' : '▸') : ''}</span>
       <span class="folder-dot" style="background:${folder.color}"></span>
       <span class="folder-name">${esc(folder.name)}</span>
       <span class="folder-count">${count}</span>
       <div class="folder-actions">
+        <button class="icon-btn subfolder" title="New subfolder">&#x2B;</button>
         <button class="icon-btn rename" title="Rename">&#x270F;</button>
         <button class="icon-btn delete" title="Delete">&#x2715;</button>
       </div>
     `;
 
+    li.querySelector('.folder-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!willShowChildren && !(childrenMap[fid] && childrenMap[fid].length)) return;
+      if (isExpanded) expandedFolders.delete(fid);
+      else expandedFolders.add(fid);
+      renderFolderList();
+    });
+
     li.addEventListener('click', (e) => {
-      if (e.target.closest('.folder-actions')) return;
+      if (e.target.closest('.folder-actions') || e.target.classList.contains('folder-toggle')) return;
       setActiveView('folder', fid);
+    });
+
+    li.querySelector('.subfolder').addEventListener('click', (e) => {
+      e.stopPropagation();
+      expandedFolders.add(fid);
+      pendingNewFolderParent = fid;
+      renderFolderList();
     });
 
     li.querySelector('.rename').addEventListener('click', (e) => {
@@ -106,17 +207,42 @@ function renderFolderList() {
 
     li.querySelector('.delete').addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!confirm(`Delete folder "${folder.name}"?\nAll assignments in this folder will be removed.`)) return;
-      delete orgData.folders[fid];
+      const descendants = getDescendantFolderIds(fid);
+      const hasDesc = descendants.size > 1;
+      const msg = hasDesc
+        ? `Delete "${folder.name}" and all its subfolders?\nAll workflow assignments will be removed.`
+        : `Delete folder "${folder.name}"?\nAll assignments in this folder will be removed.`;
+      if (!confirm(msg)) return;
+      for (const id of descendants) delete orgData.folders[id];
       for (const wfId of Object.keys(orgData.assignments)) {
-        if (orgData.assignments[wfId] === fid) delete orgData.assignments[wfId];
+        if (descendants.has(orgData.assignments[wfId])) delete orgData.assignments[wfId];
       }
-      if (activeFolderId === fid) setActiveView('all', null);
+      if (descendants.has(activeFolderId)) setActiveView('all', null);
       await saveOrgData(orgData);
       renderFolderList();
     });
 
     list.appendChild(li);
+
+    // Render children if expanded
+    if (isExpanded) {
+      renderChildren(fid, depth + 1);
+    }
+  }
+
+  function renderChildren(parentId, depth) {
+    for (const [fid, folder] of (childrenMap[parentId] || [])) {
+      renderFolderItem(fid, folder, depth);
+    }
+    if (pendingNewFolderParent === parentId) {
+      renderNewFolderInput(parentId, depth);
+    }
+  }
+
+  renderChildren(null, 0);
+
+  if (focusPendingInput) {
+    setTimeout(() => focusPendingInput.focus(), 0);
   }
 }
 
@@ -168,34 +294,13 @@ function startRename(li, fid, currentName) {
 // ── Create folder ──────────────────────────────────────────────────────────
 
 function startCreateFolder() {
-  const createSection = document.querySelector('.create-section');
-  if (document.querySelector('.create-section .inline-input')) {
-    document.querySelector('.create-section .inline-input').focus();
-    return;
+  // If already showing a root-level input, focus it
+  if (pendingNewFolderParent === null) {
+    const input = document.querySelector('#folder-list .inline-input');
+    if (input) { input.focus(); return; }
   }
-
-  const input = document.createElement('input');
-  input.className = 'inline-input';
-  input.placeholder = 'Folder name\u2026';
-  createSection.insertBefore(input, createSection.firstChild);
-  input.focus();
-
-  async function submit() {
-    const name = input.value.trim();
-    input.remove();
-    if (!name) return;
-    const id = crypto.randomUUID();
-    const color = nextColor();
-    orgData.folders[id] = { name, color, order: Object.keys(orgData.folders).length };
-    await saveOrgData(orgData);
-    renderFolderList();
-  }
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); submit(); }
-    if (e.key === 'Escape') input.remove();
-  });
-  input.addEventListener('blur', () => setTimeout(() => { if (document.contains(input)) submit(); }, 150));
+  pendingNewFolderParent = null;
+  renderFolderList();
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────
@@ -207,7 +312,6 @@ function esc(str) {
 }
 
 async function init() {
-  // Find the active tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   tabId = tab.id;
 
@@ -222,12 +326,15 @@ async function init() {
 
   orgId = match[1];
 
-  // Show short org ID in header
   document.getElementById('org-label').textContent = orgId.slice(0, 8) + '\u2026';
   document.getElementById('main').style.display = '';
 
-  // Load data
   orgData = await loadOrgData();
+
+  // Expand all existing root folders by default
+  for (const [id, f] of Object.entries(orgData.folders)) {
+    if (!f.parentId) expandedFolders.add(id);
+  }
 
   // Restore active filter state from content script
   try {
@@ -241,12 +348,10 @@ async function init() {
   renderFolderList();
   updateViewButtons();
 
-  // View buttons
   document.querySelectorAll('.view-btn').forEach((btn) => {
     btn.addEventListener('click', () => setActiveView(btn.dataset.view, null));
   });
 
-  // Create button
   document.getElementById('create-btn').addEventListener('click', startCreateFolder);
 
   // Live-update if storage changes while popup is open

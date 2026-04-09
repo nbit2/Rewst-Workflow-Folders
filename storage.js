@@ -6,7 +6,7 @@
  * Shape:
  * {
  *   "[orgId]": {
- *     folders: { "[folderId]": { name, color, order } },
+ *     folders: { "[folderId]": { name, color, order, parentId } },
  *     assignments: { "[workflowId]": "[folderId]" }
  *   }
  * }
@@ -58,11 +58,29 @@ const StorageModule = (() => {
     await _writeAll(all);
   }
 
-  async function createFolder(orgId, name, color) {
+  /**
+   * Returns a Set of folderId + all descendant folder IDs (recursive).
+   */
+  function getDescendantFolderIds(folderId, folders) {
+    const result = new Set([folderId]);
+    for (const [id, f] of Object.entries(folders)) {
+      if (f.parentId === folderId) {
+        for (const did of getDescendantFolderIds(id, folders)) {
+          result.add(did);
+        }
+      }
+    }
+    return result;
+  }
+
+  async function createFolder(orgId, name, color, parentId = null) {
     const orgData = await getOrgData(orgId);
     const id = crypto.randomUUID();
-    const order = Object.keys(orgData.folders).length;
-    orgData.folders[id] = { name, color: color || nextColor(), order };
+    const siblings = Object.values(orgData.folders).filter(
+      (f) => (f.parentId || null) === parentId
+    );
+    const order = siblings.length;
+    orgData.folders[id] = { name, color: color || nextColor(), order, parentId };
     await saveOrgData(orgId, orgData);
     return id;
   }
@@ -76,10 +94,12 @@ const StorageModule = (() => {
 
   async function deleteFolder(orgId, folderId) {
     const orgData = await getOrgData(orgId);
-    delete orgData.folders[folderId];
-    // Remove all assignments pointing to this folder
+    const toDelete = getDescendantFolderIds(folderId, orgData.folders);
+    for (const id of toDelete) {
+      delete orgData.folders[id];
+    }
     for (const wfId of Object.keys(orgData.assignments)) {
-      if (orgData.assignments[wfId] === folderId) {
+      if (toDelete.has(orgData.assignments[wfId])) {
         delete orgData.assignments[wfId];
       }
     }
@@ -136,5 +156,6 @@ const StorageModule = (() => {
     batchAssign,
     onChange,
     nextColor,
+    getDescendantFolderIds,
   };
 })();

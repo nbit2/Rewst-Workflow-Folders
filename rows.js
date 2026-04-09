@@ -156,11 +156,28 @@ const RowsModule = (() => {
 
   // ── Filtering ──────────────────────────────────────────────────────────────
 
+  function _getDescendantFolderIds(folderId, folders) {
+    const result = new Set([folderId]);
+    for (const [id, f] of Object.entries(folders)) {
+      if (f.parentId === folderId) {
+        for (const did of _getDescendantFolderIds(id, folders)) {
+          result.add(did);
+        }
+      }
+    }
+    return result;
+  }
+
   function applyFilter(view, folderId) {
     _activeView = view || 'all';
     _activeFolderId = folderId || null;
 
     if (!_orgData) return;
+
+    let folderIdSet = null;
+    if (_activeView === 'folder' && _activeFolderId) {
+      folderIdSet = _getDescendantFolderIds(_activeFolderId, _orgData.folders);
+    }
 
     const rows = getWorkflowRows();
     for (const row of rows) {
@@ -172,7 +189,7 @@ const RowsModule = (() => {
       } else if (_activeView === 'unfoldered') {
         show = !wfId || !_orgData.assignments[wfId];
       } else if (_activeView === 'folder') {
-        show = !!wfId && _orgData.assignments[wfId] === _activeFolderId;
+        show = !!wfId && folderIdSet.has(_orgData.assignments[wfId]);
       }
 
       row.style.display = show ? '' : 'none';

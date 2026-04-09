@@ -6,7 +6,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      width: 260px;
+      width: 280px;
       background: #0f172a;
       color: #e2e8f0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -31,7 +31,7 @@
     .header-org {
       font-size: 11px;
       color: #475569;
-      max-width: 130px;
+      max-width: 150px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -91,14 +91,14 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
-      max-height: 300px;
+      max-height: 360px;
       overflow-y: auto;
     }
     .folder-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 7px 10px;
+      gap: 6px;
+      padding: 7px 10px 7px 10px;
       border-radius: 6px;
       cursor: pointer;
       transition: background 0.1s;
@@ -106,6 +106,22 @@
     }
     .folder-item:hover { background: #1e293b; }
     .folder-item.active { background: #1e3a5f; }
+
+    /* ── Toggle (expand/collapse) ── */
+    .folder-toggle {
+      width: 14px;
+      flex-shrink: 0;
+      text-align: center;
+      font-size: 10px;
+      color: #475569;
+      cursor: pointer;
+      user-select: none;
+      line-height: 1;
+    }
+    .folder-toggle:hover { color: #94a3b8; }
+    .folder-toggle.folder-toggle--leaf {
+      cursor: default;
+    }
 
     .folder-dot {
       width: 9px;
