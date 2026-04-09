@@ -13,6 +13,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   vertical-align: middle;
   transition: color 0.15s, background 0.15s;
   opacity: 0.5;

@@ -120,6 +120,10 @@ const RowsModule = (() => {
     const actionsCell = row.querySelector('td:last-child');
     if (!actionsCell) return;
 
+    // Insert into the inner wrapper div (where the other action icons live),
+    // falling back to the td itself if no wrapper is found.
+    const actionsContainer = actionsCell.querySelector('div') || actionsCell;
+
     const btn = document.createElement('button');
     btn.className = 'rwf-folder-btn';
     btn.title = 'Assign to folder';
@@ -134,7 +138,7 @@ const RowsModule = (() => {
       ContextMenuModule.showMenu([wfId], rect.left, rect.bottom + 4);
     });
 
-    actionsCell.insertBefore(btn, actionsCell.firstChild);
+    actionsContainer.insertBefore(btn, actionsContainer.firstChild);
   }
 
   /**
