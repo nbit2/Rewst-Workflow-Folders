@@ -2,7 +2,7 @@
 
 A browser extension that adds folder organisation to the Rewst workflows list. Workflows are displayed as a flat list with no grouping by default — this fixes that by letting you create folders and assign workflows to them, with assignments stored locally in your browser.
 
-Built for the Asia region (`app.rewst.asia`). Vibecoded in a couple of hours, so treat it accordingly.
+Built for the Asia region (`app.rewst.asia`), but can be changed to any region. Vibecoded in a couple of hours, so treat it accordingly.
 
 ## Installing
 
