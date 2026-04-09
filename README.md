@@ -28,6 +28,14 @@ Each workflow row gets a small folder icon button in the actions column. Click i
 
 Folder assignments are stored per organisation, so if you have access to multiple Rewst orgs they won't interfere with each other.
 
+## Disclaimer
+
+This project is not affiliated with, endorsed by, or supported by Rewst in any way. It is an independent tool built by a third party and has no official relationship with the Rewst platform or its developers.
+
+Before installing any browser extension you should review the source code yourself. This extension requests access to `app.rewst.asia` (or whichever region you configure) and reads workflow data that is already rendered on the page. It does not make any API calls to Rewst, does not transmit any data externally, and stores everything locally in your browser. That said, you should verify this yourself rather than taking it on faith — the full source is in this repository.
+
+This was a quick side project and comes with no warranty or guarantee of fitness for any purpose. It may break if Rewst updates their UI. Use it at your own risk.
+
 ## Notes
 
 - Assignments are stored in browser local storage — they aren't synced to Rewst or shared with other users
