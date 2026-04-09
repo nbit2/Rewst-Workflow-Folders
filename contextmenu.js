@@ -92,18 +92,6 @@ const ContextMenuModule = (() => {
       }
     }
 
-    menu.appendChild(_separator());
-
-    // New folder shortcut
-    const newFolderItem = document.createElement('div');
-    newFolderItem.className = 'rwf-cm-item rwf-cm-item--new';
-    newFolderItem.textContent = '+ New folder\u2026';
-    newFolderItem.addEventListener('click', () => {
-      _removeMenu();
-      PanelModule.startCreateFolder();
-    });
-    menu.appendChild(newFolderItem);
-
     document.body.appendChild(menu);
 
     // Reposition if menu overflows viewport
