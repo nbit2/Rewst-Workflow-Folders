@@ -196,6 +196,27 @@
     }
     .create-btn:hover { border-color: #3b82f6; color: #93c5fd; background: #1e3a5f; }
 
+    /* ── Backup section ── */
+    .backup-section {
+      display: flex;
+      gap: 6px;
+    }
+    .backup-btn {
+      flex: 1;
+      background: none;
+      border: 1px solid #1e293b;
+      color: #475569;
+      cursor: pointer;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: inherit;
+      text-align: center;
+      transition: border-color 0.1s, color 0.1s, background 0.1s;
+    }
+    .backup-btn:hover { border-color: #334155; color: #94a3b8; background: #1e293b; }
+    .backup-btn.import-btn:hover { border-color: #10b981; color: #6ee7b7; background: #052e16; }
+
     /* ── Inline input ── */
     .inline-input {
       background: #1e293b;
@@ -236,6 +257,10 @@
 
     <div class="create-section">
       <button class="create-btn" id="create-btn">+ New Folder</button>
+      <div class="backup-section">
+        <button class="backup-btn" id="export-btn">&#x2913; Export</button>
+        <button class="backup-btn import-btn" id="import-btn">&#x2912; Import</button>
+      </div>
     </div>
   </div>
 

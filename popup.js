@@ -303,6 +303,72 @@ function startCreateFolder() {
   renderFolderList();
 }
 
+// ── Backup / Restore ───────────────────────────────────────────────────────
+
+function exportFolders() {
+  const exportData = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    orgId,
+    folders: orgData.folders,
+    assignments: orgData.assignments,
+  };
+  const json = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rewst-folders-${orgId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importFolders() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      alert('Could not read file — make sure it is a valid JSON backup.');
+      return;
+    }
+
+    if (!data.folders || typeof data.folders !== 'object') {
+      alert('Invalid backup file: missing folders data.');
+      return;
+    }
+
+    const folderCount = Object.keys(data.folders).length;
+    const sameOrg = data.orgId === orgId;
+
+    const msg = sameOrg
+      ? `Import ${folderCount} folder(s) and restore workflow assignments?\n\nThis will replace your current folder structure.`
+      : `Import ${folderCount} folder(s) from a different organisation?\n\nFolders will be imported but workflow assignments will be skipped (they belong to a different org). This will replace your current folders.`;
+
+    if (!confirm(msg)) return;
+
+    orgData.folders = data.folders;
+    orgData.assignments = sameOrg && data.assignments ? data.assignments : {};
+
+    await saveOrgData(orgData);
+
+    expandedFolders.clear();
+    for (const [id, f] of Object.entries(orgData.folders)) {
+      if (!f.parentId) expandedFolders.add(id);
+    }
+
+    renderFolderList();
+  });
+  input.click();
+}
+
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 
 function esc(str) {
@@ -353,6 +419,8 @@ async function init() {
   });
 
   document.getElementById('create-btn').addEventListener('click', startCreateFolder);
+  document.getElementById('export-btn').addEventListener('click', exportFolders);
+  document.getElementById('import-btn').addEventListener('click', importFolders);
 
   // Live-update if storage changes while popup is open
   chrome.storage.onChanged.addListener((changes, area) => {
