@@ -6,7 +6,7 @@ Built for the Asia region (`app.rewst.asia`). Vibecoded in a couple of hours, so
 
 ## Installing
 
-The extension isn't published to any store, so you'll need to load it manually.
+You'll need to load it manually.
 
 **Chrome or Edge:**
 
@@ -17,6 +17,8 @@ The extension isn't published to any store, so you'll need to load it manually.
 5. Navigate to your Rewst workflows page — the extension icon will become active
 
 To update after pulling changes, click the refresh icon on the extension card and hard-refresh the Rewst tab (Ctrl+Shift+R).
+
+If you are from another Rewst region that isn't asia, you must change the host permissions URL and the matches URL in the manifest.json file.
 
 ## Usage
 
