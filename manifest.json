@@ -5,15 +5,24 @@
   "description": "Adds folder organisation to the Rewst workflows list",
   "permissions": ["storage", "tabs"],
   "host_permissions": [
-    "https://app.rewst.asia/*"
+    "https://app.rewst.io/*"
   ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{d2f9864c-fb4b-4a4c-8480-b71540997968}",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Rewst Workflow Folders"
   },
   "content_scripts": [
     {
-      "matches": ["https://app.rewst.asia/organizations/*/workflows*"],
+      "matches": ["https://app.rewst.io/organizations/*/workflows*"],
       "js": ["storage.js", "rows.js", "contextmenu.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"

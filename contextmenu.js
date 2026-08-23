@@ -18,6 +18,10 @@ const ContextMenuModule = (() => {
     if (existing) existing.remove();
   }
 
+  function isValidColor(c) {
+  return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
+  }
+
   function _buildMenu(workflowIds, x, y) {
     _removeMenu();
 
@@ -78,11 +82,15 @@ const ContextMenuModule = (() => {
         const allInFolder = workflowIds.every(
           (wfId) => _orgData.assignments[wfId] === folderId
         );
+
+        //Safeguard against bad color values
+        const safeColor = isValidColor(folder.color) ? folder.color : '#64748b';
         item.innerHTML = `
-          <span class="rwf-cm-dot" style="background:${folder.color}"></span>
+          <span class="rwf-cm-dot"></span>
           <span>${_escapeHtml(folder.name)}</span>
           ${allInFolder ? '<span class="rwf-cm-check">&#x2713;</span>' : ''}
         `;
+        item.querySelector('.rwf-cm-dot').style.background = safeColor;
 
         item.addEventListener('click', () => {
           StorageModule.batchAssign(_orgId, workflowIds, folderId);
