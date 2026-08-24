@@ -1,3 +1,4 @@
+//TODO -- update this
 # Rewst Workflow Folders
 
 A browser extension that adds folder organisation to the Rewst workflows list. Workflows are displayed as a flat list with no grouping by default — this fixes that by letting you create folders and assign workflows to them, with assignments stored locally in your browser.

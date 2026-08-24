@@ -168,9 +168,11 @@ function renderFolderList() {
     li.dataset.folderId = fid;
     li.style.paddingLeft = (10 + depth * 16) + 'px';
 
+    //Guard against bad color values
+    const safeColor = isValidColor(folder.color) ? folder.color : '#64748b';
     li.innerHTML = `
       <span class="folder-toggle${willShowChildren ? '' : ' folder-toggle--leaf'}">${willShowChildren ? (isExpanded ? '▾' : '▸') : ''}</span>
-      <span class="folder-dot" style="background:${folder.color}"></span>
+      <span class="folder-dot"></span>
       <span class="folder-name">${esc(folder.name)}</span>
       <span class="folder-count">${count}</span>
       <div class="folder-actions">
@@ -179,6 +181,7 @@ function renderFolderList() {
         <button class="icon-btn delete" title="Delete">&#x2715;</button>
       </div>
     `;
+    li.querySelector('.folder-dot').style.background = safeColor;
 
     li.querySelector('.folder-toggle').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -345,6 +348,31 @@ function importFolders() {
       return;
     }
 
+    // Sanitize folder entries
+    for (const [id, f] of Object.entries(data.folders)) {
+      if (!f || typeof f.name !== 'string') { delete data.folders[id]; continue; }
+      if (!isValidColor(f.color)) f.color = '#64748b';
+    }
+
+    // Drop folders with a parentId that doesn't exist, or that creates a cycle
+    for (const [id, f] of Object.entries(data.folders)) {
+      if (f.parentId && !data.folders[f.parentId]) {
+        f.parentId = null; // orphaned reference — treat as root
+        continue;
+      }
+      // Walk up the parent chain to detect cycles
+      const seen = new Set([id]);
+      let current = f.parentId;
+      while (current) {
+        if (seen.has(current)) {
+          f.parentId = null; // cycle detected — break it
+          break;
+        }
+        seen.add(current);
+        current = data.folders[current]?.parentId || null;
+      }
+    }
+
     const folderCount = Object.keys(data.folders).length;
     const sameOrg = data.orgId === orgId;
 
@@ -375,6 +403,10 @@ function esc(str) {
   return String(str)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function isValidColor(c) {
+  return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
 }
 
 async function init() {
